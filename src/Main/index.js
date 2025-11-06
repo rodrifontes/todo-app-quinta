@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image } from 'react-native';
 
 import { Text } from '../components/Text';
@@ -14,10 +14,10 @@ import { CenteredContainer, Container } from './styles';
 
 import task from '../assets/images/task.png';
 
-import { tasks as mockup } from '../mocks/tasks';
+import { useTasksDatabase } from '../database/useTasksDatabase';
 
 export default function Main() {
-  const [tasks, setTasks] = useState(mockup);
+  const [tasks, setTasks] = useState([]);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isNewTaskModalVisible, setIsNewTaskModalVisible] = useState(false);
   const [isEditTaskModalVisible, setIsEditTaskModalVisible] = useState(false);
@@ -25,14 +25,27 @@ export default function Main() {
   const [taskBeingEdited, setTaskBeingEdited] = useState();
   const [isLoading, setIsLoading] = useState(false);
 
+  const tasksDatabase = useTasksDatabase();
+
+  async function getTasks() {
+    setIsLoading(true);
+    setTasks(await tasksDatabase.show());
+    setIsLoading(false);
+  }
+
+  useEffect(() => {
+    getTasks();
+  }, []);
+
   function handleDeleteTask(id) {
     setTaskIdBeingDeleted(id);
     setIsDeleteModalVisible(true);
   }
 
   function handleConfirmDeleteTask() {
-    alert(`Exclua tarefa de id:  ${taskIdBeingDeleted}`);
+    tasksDatabase.remove(taskIdBeingDeleted);
     setIsDeleteModalVisible(false);
+    getTasks();
   }
 
   function handleEditTask(task) {
@@ -41,17 +54,20 @@ export default function Main() {
   }
 
   function handleChangeStatus(id) {
-    alert(`Alterar Tarefa ${id}`);
+    tasksDatabase.updateStatus(id);
+    getTasks();
   }
 
   function handleCreateTask(task) {
-    alert(`{ title: ${task.title}, description: ${task.description}}`);
+    tasksDatabase.create(task);
     setIsNewTaskModalVisible(false);
+    getTasks();
   }
 
   function handleSaveEdit(task) {
-    alert(`{ id: ${task.id}, title: ${task.title}, description: ${task.description}}`);
+    tasksDatabase.update(task);
     setIsEditTaskModalVisible(false);
+    getTasks();
   }
 
   return (
@@ -73,7 +89,7 @@ export default function Main() {
         </CenteredContainer>
       )}
 
-      {tasks.length === 0 && (
+      {tasks.length === 0 && !isLoading && (
         <CenteredContainer>
           <Image source={task} style={{ width: 150, height: 150 }} />
 
