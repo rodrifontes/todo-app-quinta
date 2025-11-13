@@ -14,7 +14,7 @@ import { CenteredContainer, Container } from './styles';
 
 import task from '../assets/images/task.png';
 
-import { useTasksDatabase } from '../database/useTasksDatabase';
+import { api } from '../utils/api';
 
 export default function Main() {
   const [tasks, setTasks] = useState([]);
@@ -23,18 +23,15 @@ export default function Main() {
   const [isEditTaskModalVisible, setIsEditTaskModalVisible] = useState(false);
   const [taskIdBeingDeleted, setTaskIdBeingDeleted] = useState();
   const [taskBeingEdited, setTaskBeingEdited] = useState();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const tasksDatabase = useTasksDatabase();
-
-  async function getTasks() {
-    setIsLoading(true);
-    setTasks(await tasksDatabase.show());
-    setIsLoading(false);
-  }
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    getTasks();
+    api.get('/tasks').then((response) => {
+      setTasks(response.data);
+      setIsLoading(false);
+    }).catch((error) => {
+      console.log(error);
+    });
   }, []);
 
   function handleDeleteTask(id) {
@@ -42,10 +39,15 @@ export default function Main() {
     setIsDeleteModalVisible(true);
   }
 
-  function handleConfirmDeleteTask() {
-    tasksDatabase.remove(taskIdBeingDeleted);
+  async function handleConfirmDeleteTask() {
+    await api.delete(`/tasks/${taskIdBeingDeleted}`);
+
+    setTasks((prevState) => prevState.filter(
+      (task) => task.id !== taskIdBeingDeleted
+    ));
+
     setIsDeleteModalVisible(false);
-    getTasks();
+
   }
 
   function handleEditTask(task) {
@@ -53,21 +55,27 @@ export default function Main() {
     setIsEditTaskModalVisible(true);
   }
 
-  function handleChangeStatus(id) {
-    tasksDatabase.updateStatus(id);
-    getTasks();
+  async function handleChangeStatus(id) {
+    const { data: taskUpdate } = await api.put(`/tasks/status/${id}`, task);
+    setTasks((prevState) => prevState.map(
+      (taskItem) => taskItem.id === id ? taskUpdate : taskItem
+    ));
   }
 
-  function handleCreateTask(task) {
-    tasksDatabase.create(task);
+  async function handleCreateTask(task) {
+    const { data: taskAdd } = await api.post('/tasks', task);
+
+    setTasks((prevState) => [taskAdd, ...prevState]);
+
     setIsNewTaskModalVisible(false);
-    getTasks();
   }
 
-  function handleSaveEdit(task) {
-    tasksDatabase.update(task);
+  async function handleSaveEdit(task) {
+    const { data: taskUpdate } = await api.put(`/tasks/${task.id}`, task);
+    setTasks((prevState) => prevState.map(
+      (taskItem) => taskItem.id === task.id ? taskUpdate : taskItem
+    ));
     setIsEditTaskModalVisible(false);
-    getTasks();
   }
 
   return (
